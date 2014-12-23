@@ -67,7 +67,7 @@ SYS_MODULE_STOP(wwwd_stop);
 #define PS2_CLASSIC_ISO_PATH     "/dev_hdd0/game/PS2U10000/USRDIR/ISO.BIN.ENC"
 #define PS2_CLASSIC_ISO_ICON     "/dev_hdd0/game/PS2U10000/ICON0.PNG"
 
-#define WM_VERSION			"1.34.06 MOD"						// webMAN version
+#define WM_VERSION			"1.34.07 MOD"						// webMAN version
 #define MM_ROOT_STD			"/dev_hdd0/game/BLES80608/USRDIR"	// multiMAN root folder
 #define MM_ROOT_SSTL		"/dev_hdd0/game/NPEA00374/USRDIR"	// multiman SingStar® Stealth root folder
 #define MM_ROOT_STL			"/dev_hdd0/tmp/game_repo/main"		// stealthMAN root folder
@@ -2737,7 +2737,7 @@ void detect_firmware()
 	dex_mode=0;
 
 	if(peekq(0x80000000002ED860ULL)==CEX) {SYSCALL_TABLE = SYSCALL_TABLE_465;  c_firmware=(peekq(0x80000000002FC938ULL)==0x323031342F31312FULL)?4.66f:4.65f;} else
-	if(peekq(0x800000000030F1A8ULL)==DEX) {SYSCALL_TABLE = SYSCALL_TABLE_465D; c_firmware=4.65f; dex_mode=2;}	else
+	if(peekq(0x800000000030F1A8ULL)==DEX) {SYSCALL_TABLE = SYSCALL_TABLE_465D; c_firmware=(peekq(0x800000000031EBA8ULL)==0x323031342F31312FULL)?4.66f:4.65f; dex_mode=2;}	else
 	if(peekq(0x80000000002ED850ULL)==CEX) {SYSCALL_TABLE = SYSCALL_TABLE_460;  c_firmware=4.60f;}				else
 	if(peekq(0x80000000002EC5E0ULL)==CEX) {SYSCALL_TABLE = SYSCALL_TABLE_455;  c_firmware=4.55f;}				else
 	if(peekq(0x80000000002E9D70ULL)==CEX) {SYSCALL_TABLE = SYSCALL_TABLE_453;  c_firmware=4.53f;}				else
@@ -4061,13 +4061,21 @@ static void handleclient(u64 conn_s_p)
 
 		make_fb_xml(myxml);
 
-		if(conn_s_p==START_DAEMON && webman_config->refr==1)
-        {
+		if(conn_s_p==START_DAEMON)
+		{
 #ifdef USE_VM
 			sys_vm_unmap(sysmem);
 #else
 			sys_memory_free(sysmem);
 #endif
+			init_running=0;
+
+			// start a new thread for refresh content at start up
+			if(!webman_config->refr)
+			{
+				sys_ppu_thread_t id3;
+				sys_ppu_thread_create(&id3, handleclient, (u64)REFRESH_CONTENT, -0x1d8, 0x20000, 0, "wwwd2");
+			}
 			sys_ppu_thread_exit(0);
 		}
 
@@ -8096,7 +8104,7 @@ void enable_dev_blind(char *msg)
 	if(cellFsStat("/dev_blind", &s)!=CELL_FS_SUCCEEDED)
 		{system_call_8(SC_FS_MOUNT, (u64)(char*)"CELL_FS_IOS:BUILTIN_FLSH1", (u64)(char*)"CELL_FS_FAT", (u64)(char*)"/dev_blind", 0, 0, 0, 0, 0);}
 
-	if(msg[0]==0) return;
+	if(!msg) return;
 
 	show_msg((char*) msg);
 	sys_timer_sleep(2);
@@ -9998,6 +10006,7 @@ static void mount_with_mm(const char *_path0, u8 do_eject)
 	if(do_eject==MOUNT_EXT_GDATA) goto patch;
 #endif
 
+	// save lastgame.bin / process _next & _prev commands
 	if(do_eject)
 	{
 		//if(!strstr(_path0, "/PSPISO/") && !strstr(_path0, "/ISO/"))
@@ -10560,7 +10569,9 @@ static void mount_with_mm(const char *_path0, u8 do_eject)
 			if(cellPadGetData(0, &data) != CELL_PAD_OK)
 				if(cellPadGetData(1, &data) != CELL_PAD_OK) cellPadGetData(2, &data);
 
-			if(data.len > 0 && (data.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_SELECT)) special_mode=true;
+			if(data.len > 0 && (data.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_SELECT)) special_mode=true; //mount also app_home
+
+			if(is_rebug || special_mode) eject_insert(1, 0);
 
 			// -- get TitleID from PARAM.SFO
 			char paramsfo[4096];
