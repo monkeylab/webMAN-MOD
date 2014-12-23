@@ -6555,7 +6555,26 @@ just_leave:
 
 						//if(cobra_mode) strcat(buffer, "[Cobra] ");
 						//strcat(buffer, "PS3 Game List:<br>");
-						strcat(buffer, " <br>");
+						if(strstr(param, "/index.ps3"))
+						{
+							if(!(webman_config->cmask & PS3)) strcat(buffer, "[<a href=\"/index.ps3?games\">GAMES</a>] ");
+							if(!(webman_config->cmask & PS2)) strcat(buffer, "[<a href=\"/index.ps3?PS2ISO\">PS2ISO</a>] ");
+#ifdef COBRA_ONLY
+							if(!(webman_config->cmask & PSP)) strcat(buffer, "[<a href=\"/index.ps3?PSPISO\">PSPISO</a>] ");
+							if(!(webman_config->cmask & PS1)) strcat(buffer, "[<a href=\"/index.ps3?PSXISO\">PSXISO</a>] ");
+							if(!(webman_config->cmask & BLU)) strcat(buffer, "[<a href=\"/index.ps3?BDISO\">BDISO</a>] ");
+							if(!(webman_config->cmask & DVD)) strcat(buffer, "[<a href=\"/index.ps3?DVDISO\">DVDISO</a>] ");
+
+							strcat(buffer, "[<a href=\"/index.ps3?/dev_hdd0\">HDD</a>] "
+							               "[<a href=\"/index.ps3?usb\">USB</a>] "
+							               "[<a href=\"/index.ps3?ntfs\">NTFS</a>]<HR>");
+#else
+							strcat(buffer, "[<a href=\"/index.ps3?/dev_hdd0\">HDD</a>] "
+							               "[<a href=\"/index.ps3?usb\">USB</a>]<HR>");
+#endif
+						}
+						else
+							strcat(buffer, " <br>");
 
 						while(loading_games && working) sys_timer_usleep(20000);
 
@@ -6620,11 +6639,18 @@ just_leave:
 							t_line_entries *line_entry	= (t_line_entries *)sysmem_html;
 							u16 max_entries=((BUFFER_SIZE))/512;
 
+							// filter html content
+							u8 filter0=0, filter1=0, b0=0, b1=0;
+							if(strstr(param, "ntfs")) {filter0=NTFS; b0=1;} else
+							for(u8 f0=0; f0<11; f0++) if(strstr(param, drives[f0])) {filter0=f0; b0=1; break;}
+							for(u8 f1=0; f1<11; f1++) if(strstr(param, paths [f1])) {filter1=f1; b1=1; break;}
+							if(!b0 && strstr(param, "usb" )) {filter0=1; b0=2;}
+							if(!b1 && strstr(param, "games")) {filter1=0; b1=2;}
 
-							for(u8 f0=0; f0<11; f0++)  // drives: 0="/dev_hdd0", 1="/dev_usb000", 2="/dev_usb001", 3="/dev_usb002", 4="/dev_usb003", 5="/dev_usb006", 6="/dev_usb007", 7="/net0", 8="/net1", 9="/net2", 10="/ext"
+							for(u8 f0=filter0; f0<11; f0++)  // drives: 0="/dev_hdd0", 1="/dev_usb000", 2="/dev_usb001", 3="/dev_usb002", 4="/dev_usb003", 5="/dev_usb006", 6="/dev_usb007", 7="/net0", 8="/net1", 9="/net2", 10="/ext"
 							{
 								int ns=-2; u8 uprofile=profile;
-								for(u8 f1=0; f1<11; f1++) // paths: 0="GAMES", 1="GAMEZ", 2="PS3ISO", 3="BDISO", 4="DVDISO", 5="PS2ISO", 6="PSXISO", 7="PSXGAMES", 8="PSPISO", 9="ISO", 10="video"
+								for(u8 f1=filter1; f1<11; f1++) // paths: 0="GAMES", 1="GAMEZ", 2="PS3ISO", 3="BDISO", 4="DVDISO", 5="PS2ISO", 6="PSXISO", 7="PSXGAMES", 8="PSPISO", 9="ISO", 10="video"
 								{
 #ifndef COBRA_ONLY
 									if((f1>1 && f1<10) && f1!=5) continue;
@@ -6641,14 +6667,19 @@ just_leave:
 									if(f0==8 && (!webman_config->netd1 || f1>6 || !cobra_mode)) break;
 									if(f0==9 && (!webman_config->netd2 || f1>6 || !cobra_mode)) break;
 
-									if( (webman_config->cmask & PS3) && (f1<3 || f1>=10)) continue;
-									if( (webman_config->cmask & BLU) && f1==3) continue;
-									if( (webman_config->cmask & DVD) && f1==4) continue;
-									if( (webman_config->cmask & PS2) && f1==5) continue;
-									if( (webman_config->cmask & PS1) && f1==6) continue;
-									if( (webman_config->cmask & PS1) && f1==7) continue;
-									if( (webman_config->cmask & PSP) && f1==8) continue;
-									if( (webman_config->cmask & PSP) && f1==9) continue;
+									if(b0) {if(b0==2 && f0<7); else if(filter0!=f0) continue;}
+									if(b1) {if(b1==2 && (f1<2 || f1>=10) && filter1<2); else if(filter1!=f1) continue;}
+									else
+									{
+										if( (webman_config->cmask & PS3) && (f1<3 || f1>=10)) continue;
+										if( (webman_config->cmask & BLU) && f1==3) continue;
+										if( (webman_config->cmask & DVD) && f1==4) continue;
+										if( (webman_config->cmask & PS2) && f1==5) continue;
+										if( (webman_config->cmask & PS1) && f1==6) continue;
+										if( (webman_config->cmask & PS1) && f1==7) continue;
+										if( (webman_config->cmask & PSP) && f1==8) continue;
+										if( (webman_config->cmask & PSP) && f1==9) continue;
+									}
 
 									is_net=(f0>=7 && f0<=9);
 #ifdef COBRA_ONLY
