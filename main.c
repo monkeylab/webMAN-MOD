@@ -2115,13 +2115,13 @@ static void rawseciso_thread(uint64_t arg)
 
 	emu_mode = args->emu_mode;
 	if (emu_mode == EMU_PSX)
-        {
+	{
 		num_tracks = args->num_tracks;
 		tracks = (ScsiTrackDescriptor *)(sections_size + num_sections);
 		is_cd2352 = 1;
 	}
 	else
-        {
+	{
 		num_tracks = 0;
 		tracks = NULL;
 	}
@@ -2148,7 +2148,7 @@ static void rawseciso_thread(uint64_t arg)
 	if (ret != 0)
 	{
 		//DPRINTF("sys_event_port_create failed: %x\n", ret);
-                sys_storage_close(handle);
+		sys_storage_close(handle);
 		sys_memory_free((sys_addr_t)args);
 		sys_ppu_thread_exit(ret);
 	}
