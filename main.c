@@ -36,6 +36,7 @@
 
 //#define ENGLISH_ONLY 1 // uncomment for english only version
 //#define USE_DEBUG 1
+//#define EXTRA_FEAT 1
 
 //#define CCAPI 1		// uncomment for ccapi release
 #define COBRA_ONLY 1	// comment out for ccapi/non-cobra release
@@ -4996,6 +4997,7 @@ again3:
 			}
 			if(strstr(param, "restart.ps3"))
 			{
+restart:
 				sclose(&conn_s);
 				//sys_memory_free(sysmem);
 				working=0;
@@ -5687,7 +5689,11 @@ again3:
 												else
 													sprintf(fsize, "<a href=\"/mount.ps3%s\">%llu %s</a>", templn, sz, sf);
 											}
-											else if( strstr(entry.d_name, "webftp_server") || strstr(entry.d_name, ".p3t") || strstr(entry.d_name, ".edat") || strstr(entry.d_name, ".pkg") )
+#ifdef EXTRA_FEAT
+											else if( strstr(data[n].name, "webftp_server") || strstr(data[n].name, ".p3t") || strstr(data[n].name, ".edat") || strstr(data[n].name, ".pkg") || strstr(data[n].name, "/lv2_kernel") )
+#else
+											else if( strstr(data[n].name, "webftp_server") || strstr(data[n].name, ".p3t") || strstr(data[n].name, ".edat") || strstr(data[n].name, ".pkg") )
+#endif
 												sprintf(fsize, "<a href=\"/copy.ps3%s\">%llu %s</a>", templn, sz, sf);
 											else
 												sprintf(fsize, "%llu %s", sz, sf);
@@ -5795,7 +5801,11 @@ again3:
 											sprintf(fsize, "<a href=\"/mount.ps3%s\">%llu %s</a>", templn, sz, sf);
 									}
 #endif
+#ifdef EXTRA_FEAT
+									else if( strstr(entry.d_name, "webftp_server") || strstr(entry.d_name, ".p3t") || strstr(entry.d_name, ".edat") || strstr(entry.d_name, ".pkg") || strstr(entry.d_name, "lv2_kernel") )
+#else
 									else if( strstr(entry.d_name, "webftp_server") || strstr(entry.d_name, ".p3t") || strstr(entry.d_name, ".edat") || strstr(entry.d_name, ".pkg") )
+#endif
 										sprintf(fsize, "<a href=\"/copy.ps3%s\">%llu %s</a>", templn, sz, sf);
 									else
 										sprintf(fsize, "%llu %s", sz, sf);
@@ -6404,7 +6414,54 @@ just_leave:
 								if(plen==IS_COPY)
 								{
 									bool is_copying_from_hdd = (strstr(param+plen, "/dev_hdd0")!=NULL);
+#ifdef EXTRA_FEAT
+									if(strstr(param+plen, "/lv2_kernel"))
+									{
+										if(cellFsStat(param+plen, &buf)!=CELL_FS_SUCCEEDED)
+											sprintf(target, STR_ERROR);
+										else
+										{
+											uint64_t size = buf.st_size;
 
+											enable_dev_blind(param+plen);
+
+											// for	cobra req: /dev_flash/sys/stage2.bin & /dev_flash/sys/lv2_self
+											sprintf(tempstr, "%s", param+plen);
+											tempstr[strrchr(tempstr, '/')]=0; strcat(tempstr, "/stage2.bin");
+
+											sprintf(target, "/dev_blind/sys/stage2.bin");
+											if(cellFsStat(target, &buf)!=CELL_FS_SUCCEEDED)
+												filecopy(tempstr, target, COPY_WHOLE_FILE);
+
+											// copy: /dev_flash/sys/lv2_self
+											sprintf(target, "/dev_blind/sys/lv2_self");
+											if(cellFsStat(target, &buf)!=CELL_FS_SUCCEEDED || buf.st_size != size)
+												filecopy(param+plen, target, COPY_WHOLE_FILE);
+
+											if(cellFsStat(target, &buf)==CELL_FS_SUCCEEDED)
+											{
+												u64 lv2_offset=0x15DE78; // 4.xx CFW LV1 memory location for: /flh/os/lv2_kernel.self
+												/*
+												if(peek_lv1(lv2_offset)!=0x2F666C682F6F732FULL)
+													for(u64	addr=0;	addr<0xFFFFF8ULL; addr+=4)         // Find in 16MB
+														if(peek_lv1(addr)	== 0x2F6F732F6C76325FULL)  // /os/lv2_
+														{
+															lv2_offset=addr-4; break; // 0x12A2C0 on 3.55
+														}
+												*/
+												if(peek_lv1(lv2_offset)==0x2F666C682F6F732FULL)  // Original: /flh/os/lv2_kernel.self
+												{
+													poke_lv1(lv2_offset + 0x00, 0x2F6C6F63616C5F73ULL); // replace:	/flh/os/lv2_kernel.self -> /local_sys0/sys/lv2_self
+													poke_lv1(lv2_offset + 0x08, 0x7973302F7379732FULL);
+													poke_lv1(lv2_offset + 0x10, 0x6C76325F73656C66ULL);
+													goto restart;
+												}
+											}
+										}
+										plen=0; //do not copy
+									}
+									else
+#endif
 									if(strcasestr(param+plen, ".p3t"))
 									{
 										if(is_copying_from_hdd)
@@ -6564,12 +6621,14 @@ just_leave:
 							if(!(webman_config->cmask & PS1)) strcat(buffer, "[<a href=\"/index.ps3?PSXISO\">PSXISO</a>] ");
 							if(!(webman_config->cmask & BLU)) strcat(buffer, "[<a href=\"/index.ps3?BDISO\">BDISO</a>] ");
 							if(!(webman_config->cmask & DVD)) strcat(buffer, "[<a href=\"/index.ps3?DVDISO\">DVDISO</a>] ");
-
-							strcat(buffer, "[<a href=\"/index.ps3?/dev_hdd0\">HDD</a>] "
+#ifndef LOCAL_PS3
+							if(webman_config->netd0 || webman_config->netd1 || webman_config->netd2) strcat(buffer, "[<a href=\"/index.ps3?net\">NET</a>] ");
+#endif
+							strcat(buffer, "[<a href=\"/index.ps3?hdd\">HDD</a>] "
 							               "[<a href=\"/index.ps3?usb\">USB</a>] "
 							               "[<a href=\"/index.ps3?ntfs\">NTFS</a>]<HR>");
 #else
-							strcat(buffer, "[<a href=\"/index.ps3?/dev_hdd0\">HDD</a>] "
+							strcat(buffer, "[<a href=\"/index.ps3?hdd\">HDD</a>] "
 							               "[<a href=\"/index.ps3?usb\">USB</a>]<HR>");
 #endif
 						}
@@ -6641,11 +6700,19 @@ just_leave:
 
 							// filter html content
 							u8 filter0=0, filter1=0, b0=0, b1=0;
+#ifdef COBRA_ONLY
 							if(strstr(param, "ntfs")) {filter0=NTFS; b0=1;} else
+#endif
 							for(u8 f0=0; f0<11; f0++) if(strstr(param, drives[f0])) {filter0=f0; b0=1; break;}
 							for(u8 f1=0; f1<11; f1++) if(strstr(param, paths [f1])) {filter1=f1; b1=1; break;}
+							if(!b0 && strstr(param, "hdd" )) {filter0=0; b0=1;}
 							if(!b0 && strstr(param, "usb" )) {filter0=1; b0=2;}
 							if(!b1 && strstr(param, "games")) {filter1=0; b1=2;}
+#ifdef COBRA_ONLY
+#ifndef LOCAL_PS3
+							if(!b0 && strstr(param, "net" )) {filter0=7; b0=3;}
+#endif
+#endif
 
 							for(u8 f0=filter0; f0<11; f0++)  // drives: 0="/dev_hdd0", 1="/dev_usb000", 2="/dev_usb001", 3="/dev_usb002", 4="/dev_usb003", 5="/dev_usb006", 6="/dev_usb007", 7="/net0", 8="/net1", 9="/net2", 10="/ext"
 							{
@@ -6667,7 +6734,7 @@ just_leave:
 									if(f0==8 && (!webman_config->netd1 || f1>6 || !cobra_mode)) break;
 									if(f0==9 && (!webman_config->netd2 || f1>6 || !cobra_mode)) break;
 
-									if(b0) {if(b0==2 && f0<7); else if(filter0!=f0) continue;}
+									if(b0) {if(b0==2 && f0<7); else if(b0==3 && f0<NTFS); else if(filter0!=f0) continue;}
 									if(b1) {if(b1==2 && (f1<2 || f1>=10) && filter1<2); else if(filter1!=f1) continue;}
 									else
 									{
