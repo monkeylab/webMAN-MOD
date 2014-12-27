@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+int extcmp(const char *s1, const char *s2, size_t n);
+int extcasecmp(const char *s1, const char *s2, size_t n);
+char *strcasestr(const char *s1, const char *s2);
+
 void *memset(void *m, int c, size_t n)
 {
 	char *s = (char *) m;
@@ -198,3 +202,16 @@ size_t strspn(const char *s1, const char *s2)
     return ret;
 }
 
+int extcmp(const char *s1, const char *s2, size_t n)
+{
+    size_t s=strlen(s1);
+    if(n>s) return -1;
+    return memcmp(s1+(s-n), s2, n);
+}
+
+int extcasecmp(const char *s1, const char *s2, size_t n)
+{
+    size_t s=strlen(s1);
+    if(n>s) return -1;
+    return strncasecmp(s1+(s-n), s2, n);
+}

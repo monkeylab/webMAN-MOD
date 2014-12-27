@@ -420,7 +420,7 @@
 	<!-- Main > webMAN > gameDATA -->
 	<View id="seg_webman_gamedata">
 		<Attributes>
-			<Table key="webman_unmount">
+			<Table key="webman_gamedata">
 				<Pair key="icon"><String>/dev_hdd0/game/XMBMANPLS/USRDIR/IMAGES/gamedata.png</String></Pair>
 				<Pair key="title"><String>Toggle external gameDATA</String></Pair>
 				<Pair key="info"><String></String>Turn on/off installation of game data on USB device</Pair>
@@ -428,7 +428,7 @@
 				<Pair key="module_action"><String>http://localhost/extgd.ps3</String></Pair>
 			</Table>
 		</Attributes>
-		<Items><Item class="type:x-xmb/module-action" key="webman_unmount" attr="webman_unmount"/></Items>
+		<Items><Item class="type:x-xmb/module-action" key="webman_gamedata" attr="webman_gamedata"/></Items>
 	</View>
 
 	<!-- Main > webMAN > Unmount Disc -->
